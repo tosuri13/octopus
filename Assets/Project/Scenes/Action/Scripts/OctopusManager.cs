@@ -10,6 +10,7 @@ public class OctopusManager : MonoBehaviour
     bool _isGround = false;
     bool _isStickable = false;
     bool _isSticking = false;
+    float _stickAngularSpeed = 0.0f;
     Vector3 _stickNormal = Vector3.zero;
     Vector3 _stickPoint = Vector3.zero;
 
@@ -79,16 +80,17 @@ public class OctopusManager : MonoBehaviour
             Vector3 pivot = _stickPoint;
             Vector3 targetPosition = pivot + targetRotation * (transform.position - pivot);
 
+            float stickSpeed = Mathf.Lerp(10f, 50f, Mathf.InverseLerp(0f, 10f, _stickAngularSpeed));
             transform.SetPositionAndRotation(
                 Vector3.Lerp(
                     transform.position,
                     targetPosition,
-                    Time.deltaTime * 50f
+                    Time.deltaTime * stickSpeed
                 ),
                 Quaternion.Slerp(
                     transform.rotation,
                     targetRotation * transform.rotation,
-                    Time.deltaTime * 50f
+                    Time.deltaTime * stickSpeed
                 )
             );
         }
@@ -98,14 +100,26 @@ public class OctopusManager : MonoBehaviour
     {
         _isGround = true;
 
+        int validContantCount = 0;
+        Vector3 averagePoint = Vector3.zero;
+        Vector3 averageNormal = Vector3.zero;
+
         foreach (ContactPoint contact in collision.contacts)
         {
             if (Vector3.Angle(transform.up, contact.normal) < stats.maxStickableAngle)
             {
                 _isStickable = true;
-                _stickNormal = contact.normal;
-                _stickPoint = contact.point;
+                averagePoint += contact.point;
+                averageNormal += contact.normal;
+                validContantCount++;
             }
+        }
+
+        if (validContantCount > 0)
+        {
+            _stickPoint = averagePoint / validContantCount;
+            _stickNormal = (averageNormal / validContantCount).normalized;
+            _stickAngularSpeed = _rigidbody.angularVelocity.magnitude;
         }
     }
 

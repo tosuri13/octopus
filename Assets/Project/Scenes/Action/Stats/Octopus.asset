@@ -15,9 +15,9 @@ MonoBehaviour:
   minJumpPower: 100
   maxJumpPower: 300
   chargeRate: 600
-  groundMovePower: 0.5
-  airMovePower: 0.2
-  groundSpinPower: 100
-  airMaxSpinSpeed: 3
-  airSpinPower: 1
+  movePower: 0.2
+  jumpMovePower: 0.5
+  spinPower: 1
+  jumpSpinPower: 300
+  maxSpinSpeed: 3
   maxStickableAngle: 30
