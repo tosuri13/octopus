@@ -1,96 +1,135 @@
 using UnityEngine;
+using System.Linq;
 
 public class OctopusManager : MonoBehaviour
 {
     [SerializeField] OctopusStats stats;
 
-    Rigidbody _rigidbody;
+    Rigidbody rb;
 
-    float _chargeStartTime = 0.0f;
-    bool _isGround = false;
-    bool _isStickable = false;
-    bool _isSticking = false;
-    float _stickAngularSpeed = 0.0f;
-    Vector3 _stickNormal = Vector3.zero;
-    Vector3 _stickPoint = Vector3.zero;
+    Vector3 direction = Vector3.zero;
+    bool isGround = false;
+
+    float chargeTime = 0f;
+    bool isCharging = false;
+
+    bool isSticking = false;
+    bool isStickable = false;
+    Vector3 stickPoint = Vector3.zero;
+    Vector3 stickNormal = Vector3.zero;
+    float stickAngularSpeed = 0.0f;
+    Vector3[] suctions;
 
     void Start()
     {
-        _rigidbody = GetComponent<Rigidbody>();
+        Application.targetFrameRate = 60;
+
+        rb = GetComponent<Rigidbody>();
+        BoxCollider box = GetComponent<BoxCollider>();
+
+        Vector3 suctionCenter = box.center - new Vector3(0, box.size.y * 0.5f, 0);
+        float suctionRadius = box.size.x / 2 * stats.SUCTION_RADIUS_RATE;
+        suctions = Enumerable.Range(0, stats.SUCTION_COUNT).Select(i =>
+        {
+            float angle = i * Mathf.PI * 2f / stats.SUCTION_COUNT;
+            float x = Mathf.Cos(angle) * suctionRadius;
+            float z = Mathf.Sin(angle) * suctionRadius;
+
+            return suctionCenter + new Vector3(x, 0, z);
+        }).ToArray();
     }
 
     void Update()
     {
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
+        float inputH = Input.GetAxis("Horizontal");
+        float inputV = Input.GetAxis("Vertical");
 
         Quaternion rotateBasis = Quaternion.AngleAxis(Camera.main.transform.eulerAngles.y, Vector3.up);
-        Vector3 direction = rotateBasis * new Vector3(h, 0, v).normalized;
+        direction = rotateBasis * new Vector3(inputH, 0, inputV);
 
         if (Input.GetMouseButtonDown(0))
         {
-            _chargeStartTime = Time.time;
+            chargeTime = 0f;
+            isCharging = true;
+        }
+
+        if (Input.GetMouseButton(0))
+        {
+            if (isCharging)
+            {
+                chargeTime = Mathf.Min(chargeTime + Time.deltaTime, stats.MAX_CHARGE_TIME);
+            }
         }
 
         if (Input.GetMouseButtonUp(0))
         {
-            if (_isGround || _isSticking)
+            if (isGround || isSticking)
             {
-                float chargeTime = Time.time - _chargeStartTime;
-                float jumpPower = Mathf.Clamp(chargeTime * stats.chargeRate, stats.minJumpPower, stats.maxJumpPower);
+                isSticking = false;
+                rb.isKinematic = false;
 
-                Vector3 velocity = (Vector3.up + direction * stats.jumpMovePower) * jumpPower;
-                Vector3 spinAxis = Vector3.Cross(Vector3.up, direction);
+                float jumpPower = Mathf.InverseLerp(0, stats.MAX_CHARGE_TIME, chargeTime) * stats.CHARGE_RATE;
+                Vector3 jumpDirection = (Vector3.up + direction * stats.JUMP_MOVE_POWER).normalized;
+                rb.AddForce(jumpDirection * jumpPower, ForceMode.Impulse);
 
-                _isSticking = false;
-                _rigidbody.isKinematic = false;
-
-                _rigidbody.AddForce(velocity, ForceMode.Acceleration);
-                _rigidbody.AddTorque(spinAxis * stats.jumpSpinPower, ForceMode.Acceleration);
+                float spinPower = Mathf.Clamp01(direction.magnitude) * stats.JUMP_SPIN_POWER;
+                Vector3 spinDirection = Vector3.Cross(Vector3.up, direction).normalized;
+                rb.AddTorque(spinDirection * spinPower, ForceMode.Impulse);
             }
+
+            isCharging = false;
         }
 
         if (Input.GetKey(KeyCode.Space))
         {
-            if (_isStickable)
+            if (isStickable)
             {
-                _isSticking = true;
-                _rigidbody.isKinematic = true;
+                isSticking = true;
+                rb.isKinematic = true;
             }
         }
+    }
 
+    void FixedUpdate()
+    {
         if (direction != Vector3.zero)
         {
-            if (!_isGround)
+            if (!isGround)
             {
-                _rigidbody.AddForce(direction * stats.movePower, ForceMode.Acceleration);
+                rb.AddForce(direction.normalized * stats.AIR_MOVE_POWER, ForceMode.Acceleration);
             }
 
-            if (_rigidbody.angularVelocity.magnitude < stats.maxSpinSpeed)
+            if (rb.angularVelocity.magnitude < stats.MAX_SPEN_SPEED)
             {
-                Vector3 spinAxis = Vector3.Cross(Vector3.up, direction);
-                _rigidbody.AddTorque(spinAxis * stats.spinPower, ForceMode.Acceleration);
+                float spinPower = Mathf.Clamp01(direction.magnitude) * stats.SPIN_POWER;
+                Vector3 spinDirection = Vector3.Cross(Vector3.up, direction).normalized;
+                rb.AddTorque(spinDirection * spinPower, ForceMode.Acceleration);
             }
         }
 
-        if (_isSticking)
+        if (isSticking)
         {
-            Quaternion targetRotation = Quaternion.FromToRotation(transform.up, _stickNormal);
+            Quaternion targetRotation = Quaternion.FromToRotation(transform.up, stickNormal);
+            Vector3 targetPosition = stickPoint + targetRotation * (transform.position - stickPoint);
 
-            Vector3 pivot = _stickPoint;
-            Vector3 targetPosition = pivot + targetRotation * (transform.position - pivot);
+            float minStickSpeed = 5f;
+            float maxStickSpeed = 15f;
+            float stickSpeed = Mathf.Lerp(
+                minStickSpeed,
+                maxStickSpeed,
+                Mathf.InverseLerp(0f, 10f, stickAngularSpeed)
+            );
 
-            float stickSpeed = Mathf.Lerp(10f, 50f, Mathf.InverseLerp(0f, 10f, _stickAngularSpeed));
             transform.SetPositionAndRotation(
                 Vector3.Lerp(
                     transform.position,
                     targetPosition,
-                    Time.deltaTime * stickSpeed
+                    Time.fixedDeltaTime * stickSpeed
                 ),
                 Quaternion.Slerp(
                     transform.rotation,
                     targetRotation * transform.rotation,
-                    Time.deltaTime * stickSpeed
+                    Time.fixedDeltaTime * stickSpeed
                 )
             );
         }
@@ -98,34 +137,44 @@ public class OctopusManager : MonoBehaviour
 
     void OnCollisionStay(Collision collision)
     {
-        _isGround = true;
+        isGround = true;
 
-        int validContantCount = 0;
-        Vector3 averagePoint = Vector3.zero;
-        Vector3 averageNormal = Vector3.zero;
-
-        foreach (ContactPoint contact in collision.contacts)
+        if (!isSticking)
         {
-            if (Vector3.Angle(transform.up, contact.normal) < stats.maxStickableAngle)
+            int validRayCount = 0;
+            Vector3 averageHitPoint = Vector3.zero;
+            Vector3 averageHitNormal = Vector3.zero;
+
+            foreach (Vector3 suction in suctions)
             {
-                _isStickable = true;
-                averagePoint += contact.point;
-                averageNormal += contact.normal;
-                validContantCount++;
-            }
-        }
+                Vector3 suctionPos = transform.TransformPoint(suction);
+                Ray suctionRay = new(suctionPos, -transform.up);
 
-        if (validContantCount > 0)
-        {
-            _stickPoint = averagePoint / validContantCount;
-            _stickNormal = (averageNormal / validContantCount).normalized;
-            _stickAngularSpeed = _rigidbody.angularVelocity.magnitude;
+                if (Physics.Raycast(suctionRay, out RaycastHit hit, stats.SUCTION_RAY_LENGTH))
+                {
+                    if (Vector3.Angle(hit.normal, transform.up) <= stats.MAX_STICKABLE_ANGLE)
+                    {
+                        averageHitPoint += hit.point;
+                        averageHitNormal += hit.normal;
+                        validRayCount++;
+                    }
+                }
+            }
+
+            if (0 < validRayCount)
+            {
+                stickPoint = averageHitPoint / validRayCount;
+                stickNormal = (averageHitNormal / validRayCount).normalized;
+                stickAngularSpeed = rb.angularVelocity.magnitude;
+
+                isStickable = true;
+            }
         }
     }
 
     void OnCollisionExit(Collision collision)
     {
-        _isGround = false;
-        _isStickable = false;
+        isGround = false;
+        isStickable = false;
     }
 }
