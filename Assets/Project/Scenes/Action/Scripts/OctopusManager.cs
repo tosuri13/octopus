@@ -7,9 +7,7 @@ public class OctopusManager : MonoBehaviour
 
     Rigidbody rb;
 
-    Vector3 direction = Vector3.zero;
     bool isGround = false;
-
     float chargeTime = 0f;
     bool isCharging = false;
 
@@ -18,11 +16,14 @@ public class OctopusManager : MonoBehaviour
     Vector3 stickPoint = Vector3.zero;
     Vector3 stickNormal = Vector3.zero;
     float stickAngularSpeed = 0.0f;
+
+    Vector3 direction = Vector3.zero;
+    Vector3 respawnPoint = Vector3.zero;
     Vector3[] suctions;
 
     void Start()
     {
-        Application.targetFrameRate = 60;
+        Application.targetFrameRate = 120;
 
         rb = GetComponent<Rigidbody>();
         BoxCollider box = GetComponent<BoxCollider>();
@@ -86,6 +87,17 @@ public class OctopusManager : MonoBehaviour
             {
                 isSticking = true;
                 rb.isKinematic = true;
+            }
+        }
+
+        if (Input.GetKey(KeyCode.R))
+        {
+            if (respawnPoint != Vector3.zero)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+
+                transform.position = respawnPoint;
             }
         }
     }
@@ -176,5 +188,10 @@ public class OctopusManager : MonoBehaviour
     {
         isGround = false;
         isStickable = false;
+    }
+
+    public void SetRespawnPoint(Vector3 position)
+    {
+        respawnPoint = position;
     }
 }

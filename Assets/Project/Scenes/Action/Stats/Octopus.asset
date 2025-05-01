@@ -12,12 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b833899dea344d8787e9cafa8a1b8df, type: 3}
   m_Name: Octopus
   m_EditorClassIdentifier: 
-  minJumpPower: 100
-  maxJumpPower: 300
-  chargeRate: 600
-  movePower: 0.2
-  jumpMovePower: 0.5
-  spinPower: 1
-  jumpSpinPower: 300
-  maxSpinSpeed: 3
-  maxStickableAngle: 30
+  CHARGE_RATE: 6
+  MAX_CHARGE_TIME: 0.5
+  JUMP_MOVE_POWER: 0.5
+  JUMP_SPIN_POWER: 1
+  AIR_MOVE_POWER: 5
+  SPIN_POWER: 15
+  MAX_SPEN_SPEED: 3
+  SUCTION_COUNT: 8
+  SUCTION_RADIUS_RATE: 0.85
+  SUCTION_RAY_LENGTH: 0.1
+  MAX_STICKABLE_ANGLE: 30
