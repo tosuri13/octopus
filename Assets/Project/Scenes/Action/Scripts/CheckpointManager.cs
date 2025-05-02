@@ -7,6 +7,8 @@ public class CheckpointManager : MonoBehaviour
 
     MeshRenderer mr;
     Material[] mats;
+    ParticleSystem checkEffectPS;
+    ParticleSystem.MainModule sparkEffectPSM;
 
     bool isChecked = false;
 
@@ -17,6 +19,13 @@ public class CheckpointManager : MonoBehaviour
 
         mats[1] = uncheckedMat;
         mr.sharedMaterials = mats;
+
+        GameObject sparkEffect = transform.Find("SparkEffect").gameObject;
+        sparkEffectPSM = sparkEffect.GetComponent<ParticleSystem>().main;
+        sparkEffectPSM.startColor = uncheckedMat.color;
+
+        GameObject checkEffect = transform.Find("CheckEffect").gameObject;
+        checkEffectPS = checkEffect.GetComponent<ParticleSystem>();
     }
 
     void OnTriggerEnter(Collider other)
@@ -25,6 +34,9 @@ public class CheckpointManager : MonoBehaviour
         {
             mats[1] = checkedMat;
             mr.sharedMaterials = mats;
+
+            checkEffectPS.Play();
+            sparkEffectPSM.startColor = checkedMat.color;
 
             OctopusManager om = other.GetComponent<OctopusManager>();
             om.SetRespawnPoint(transform.position + Vector3.up * 3);
